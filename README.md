@@ -10,12 +10,17 @@ hasn't changed (SHA-256 check against the existing profile).
 ## Usage
 
 ```bash
-./generate.sh           # regenerate only if cacert.pem has changed
-./generate.sh --force   # always regenerate
+./generate.sh              # unsigned – no certificate required
+./generate.sh --signed     # sign with Apple Developer cert from Keychain
+./generate.sh --force      # skip SHA change check, always regenerate
 ```
 
-The script auto-detects an Apple Developer certificate from the Keychain,
-signs `dist/moz-certs.mobileconfig`, and prints a summary.
+Flags can be combined: `./generate.sh --signed --force`
+
+The output is written to `dist/moz-certs.mobileconfig`. When signing,
+the certificate is auto-detected from the Keychain; set `SIGNING_IDENTITY`
+in `generate.sh` to use a specific one. Unsigned profiles install with a
+"Not Verified" warning but are otherwise fully functional.
 
 ## Installation on macOS
 
@@ -30,9 +35,9 @@ the profile under Settings → General → VPN & Device Management.
 ## Requirements
 
 - macOS with Xcode developer tools
-- Apple Developer certificate in Keychain (Developer ID Application or Apple Development)
 - Python 3 + openssl (ship with macOS/Xcode)
 - Internet access to curl.se
+- Apple Developer certificate in Keychain — only required for `--signed`
 
 ## Configuration
 

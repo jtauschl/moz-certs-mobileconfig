@@ -2,11 +2,12 @@
 #
 # generate.sh – Mozilla Root Certificates mobileconfig Generator
 #
-# Downloads cacert.pem from curl.se, generates and signs a .mobileconfig.
+# Downloads cacert.pem from curl.se, generates a .mobileconfig profile.
 # Skips generation if the SHA-256 of cacert.pem has not changed.
 #
-# Requirements: macOS (current), Xcode developer tools, Apple Developer cert
-# Usage:        ./generate.sh [-f|--force]
+# Usage:  ./generate.sh                  # unsigned (no cert required)
+#         ./generate.sh -s|--signed      # sign with Apple Developer cert
+#         ./generate.sh -f|--force       # skip SHA change check
 #
 
 set -euo pipefail
@@ -40,9 +41,11 @@ die()   { echo "  ✗  $*" >&2; exit 1; }
 # ============================================================================
 
 FORCE=false
+SIGN=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -f|--force) FORCE=true ;;
+        -f|--force)  FORCE=true ;;
+        -s|--signed) SIGN=true ;;
         *) die "Unknown option: $1" ;;
     esac
     shift
@@ -56,15 +59,19 @@ mkdir -p "$OUT_DIR"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-# -- Resolve signing identity ------------------------------------------------
-if [[ -z "$SIGNING_IDENTITY" ]]; then
-    SIGNING_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
-        | grep -E "Developer ID Application|Apple Development" \
-        | head -1 \
-        | awk -F'"' '{print $2}')"
-    [[ -n "$SIGNING_IDENTITY" ]] \
-        || die "No signing certificate found in Keychain (Developer ID Application or Apple Development)"
-    info "Using certificate: ${SIGNING_IDENTITY}"
+# -- Resolve signing identity (only when --signed) ---------------------------
+if [[ "$SIGN" == true ]]; then
+    if [[ -z "$SIGNING_IDENTITY" ]]; then
+        SIGNING_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
+            | grep -E "Developer ID Application|Apple Development" \
+            | head -1 \
+            | awk -F'"' '{print $2}')"
+        [[ -n "$SIGNING_IDENTITY" ]] \
+            || die "No signing certificate found in Keychain (Developer ID Application or Apple Development)"
+    fi
+    info "Signing with: ${SIGNING_IDENTITY}"
+else
+    info "Mode: unsigned (use -s to sign)"
 fi
 
 # -- Check remote SHA --------------------------------------------------------
@@ -77,8 +84,12 @@ info "Remote SHA-256: ${REMOTE_SHA:0:16}…"
 
 # -- Compare with installed mobileconfig ------------------------------------
 if [[ "$FORCE" == false ]] && [[ -f "$OUT_PROFILE" ]]; then
+    # Try signed (DER) first, fall back to unsigned (plain XML)
     INSTALLED_SHA="$(openssl smime -verify -in "$OUT_PROFILE" -inform DER -noverify 2>/dev/null \
         | grep -o 'sha256:[a-f0-9]*' | head -1 | sed 's/sha256://')"
+    if [[ -z "$INSTALLED_SHA" ]]; then
+        INSTALLED_SHA="$(grep -o 'sha256:[a-f0-9]*' "$OUT_PROFILE" | head -1 | sed 's/sha256://')"
+    fi
     if [[ "$INSTALLED_SHA" == "$REMOTE_SHA" ]]; then
         info "Already up to date. Nothing to do."
         echo ""
@@ -105,6 +116,7 @@ step "Generating mobileconfig..."
 UNSIGNED="${WORK}/unsigned.mobileconfig"
 
 python3 - "$CACERT" "$UNSIGNED" "$PROFILE_IDENTIFIER" "$PROFILE_NAME" "$REMOTE_SHA" <<'PYEOF'
+
 import sys, base64, uuid, re, subprocess, tempfile, os
 
 pem_file, out_file, profile_id, profile_name, sha256 = sys.argv[1:]
@@ -225,13 +237,18 @@ with open(out_file, "w") as f:
 print(f"  ✓  {len(certs)} certificate payloads written")
 PYEOF
 
-# -- Sign mobileconfig -------------------------------------------------------
-step "Signing with: ${SIGNING_IDENTITY}"
-security cms -S -N "$SIGNING_IDENTITY" \
-    -i "$UNSIGNED" \
-    -o "$OUT_PROFILE" \
-    || die "Signing failed – check SIGNING_IDENTITY and Keychain access"
-info "Signed"
+# -- Sign or copy mobileconfig -----------------------------------------------
+if [[ "$SIGN" == true ]]; then
+    step "Signing..."
+    security cms -S -N "$SIGNING_IDENTITY" \
+        -i "$UNSIGNED" \
+        -o "$OUT_PROFILE" \
+        || die "Signing failed – check SIGNING_IDENTITY and Keychain access"
+    info "Signed"
+else
+    cp "$UNSIGNED" "$OUT_PROFILE"
+    info "Unsigned (install will show 'Not Verified' warning)"
+fi
 
 # -- Done --------------------------------------------------------------------
 echo ""
