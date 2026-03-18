@@ -1,43 +1,49 @@
 # moz-certs-mobileconfig
 
+<p align="center">
+  <img src="img/moz-certs-mobileconfig.png" alt="moz-certs hero">
+</p>
+
 Keeps macOS and iOS devices up to date with Mozilla's trusted root certificates —
 useful for systems that no longer receive Apple's own certificate updates.
 
 The generator downloads Mozilla's CA bundle from [curl.se/ca/](https://curl.se/ca/),
-builds a signed `.mobileconfig` profile, and skips regeneration if the bundle
-hasn't changed (SHA-256 check against the existing profile).
+builds a signed or unsigned `.mobileconfig` profile, and skips regeneration if
+the bundle hasn't changed (SHA-256 check against the existing profile).
 
 ## Usage
 
 ```bash
 ./generate.sh              # unsigned – no certificate required
-./generate.sh --signed     # sign with Apple Developer cert from Keychain
-./generate.sh --force      # skip SHA change check, always regenerate
+./generate.sh -s|--signed  # sign with Apple Developer cert from Keychain
+./generate.sh -f|--force   # skip SHA change check, always regenerate
 ```
 
 Flags can be combined: `./generate.sh --signed --force`
 
-The output is written to `dist/moz-certs.mobileconfig`. When signing,
-the certificate is auto-detected from the Keychain; set `SIGNING_IDENTITY`
-in `generate.sh` to use a specific one. Unsigned profiles install with a
-"Not Verified" warning but are otherwise fully functional.
+The output is written to `dist/moz-certs.mobileconfig`. When signing, the
+certificate is auto-detected from the Keychain and the script accepts either
+an `Apple Development` or `Developer ID Application` identity. Set
+`SIGNING_IDENTITY` in `generate.sh` to pin a specific certificate. Unsigned
+profiles install with a "Not Verified" warning but are otherwise functional.
 
 ## Installation on macOS
 
-Open `moz-certs.mobileconfig`. macOS will prompt to install the profile
+Open `dist/moz-certs.mobileconfig`. macOS will prompt to install the profile
 under System Preferences / System Settings → Profiles.
 
 ## Installation on iOS
 
-Open the URL to `moz-certs.mobileconfig` in Safari. iOS will prompt to install
-the profile under Settings → General → VPN & Device Management.
+Transfer or host `dist/moz-certs.mobileconfig` so it opens in Safari on iOS.
+The profile can then be installed under Settings → General → VPN & Device
+Management.
 
 ## Requirements
 
-- macOS with Xcode developer tools
-- Python 3 + openssl (ship with macOS/Xcode)
+- macOS
+- `curl`, `openssl`, `python3`, `security`, `shasum`
 - Internet access to curl.se
-- Apple Developer certificate in Keychain — only required for `--signed`
+- Apple signing certificate in Keychain — only required for `--signed`
 
 ## Configuration
 

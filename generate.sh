@@ -63,9 +63,7 @@ trap 'rm -rf "$WORK"' EXIT
 if [[ "$SIGN" == true ]]; then
     if [[ -z "$SIGNING_IDENTITY" ]]; then
         SIGNING_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
-            | grep -E "Developer ID Application|Apple Development" \
-            | head -1 \
-            | awk -F'"' '{print $2}')"
+            | awk -F'"' '/Developer ID Application|Apple Development/ {print $2; exit}')"
         [[ -n "$SIGNING_IDENTITY" ]] \
             || die "No signing certificate found in Keychain (Developer ID Application or Apple Development)"
     fi
@@ -86,9 +84,9 @@ info "Remote SHA-256: ${REMOTE_SHA:0:16}…"
 if [[ "$FORCE" == false ]] && [[ -f "$OUT_PROFILE" ]]; then
     # Try signed (DER) first, fall back to unsigned (plain XML)
     INSTALLED_SHA="$(openssl smime -verify -in "$OUT_PROFILE" -inform DER -noverify 2>/dev/null \
-        | grep -o 'sha256:[a-f0-9]*' | head -1 | sed 's/sha256://')"
+        | grep -o 'sha256:[a-f0-9]*' | head -1 | sed 's/sha256://' || true)"
     if [[ -z "$INSTALLED_SHA" ]]; then
-        INSTALLED_SHA="$(grep -o 'sha256:[a-f0-9]*' "$OUT_PROFILE" | head -1 | sed 's/sha256://')"
+        INSTALLED_SHA="$(grep -o 'sha256:[a-f0-9]*' "$OUT_PROFILE" | head -1 | sed 's/sha256://' || true)"
     fi
     if [[ "$INSTALLED_SHA" == "$REMOTE_SHA" ]]; then
         info "Already up to date. Nothing to do."
@@ -223,7 +221,7 @@ xml = (
     f'\t<key>PayloadDescription</key><string>Mozilla Root Certificates – https://curl.se/ca&#10;sha256:{sha256}</string>\n'
     f'\t<key>PayloadDisplayName</key><string>{profile_name}</string>\n'
     f'\t<key>PayloadIdentifier</key><string>{profile_id}</string>\n'
-    '\t<key>PayloadRemovalDisallowed</key><true/>\n'
+    '\t<key>PayloadRemovalDisallowed</key><false/>\n'
     '\t<key>PayloadScope</key><string>System</string>\n'
     '\t<key>PayloadType</key><string>Configuration</string>\n'
     f'\t<key>PayloadUUID</key><string>{str(uuid.uuid4()).upper()}</string>\n'

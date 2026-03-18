@@ -1,2 +1,4 @@
 .DS_Store
 dist/
+*.psd
+img/moz-certs-mobileconfig
