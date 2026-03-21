@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>moz-certs-mobileconfig</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .card {
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08);
+      max-width: 560px;
+      width: 100%;
+      padding: 2.5rem;
+    }
+    .badge {
+      display: inline-block;
+      background: #e8f4fd;
+      color: #0071e3;
+      font-size: .75rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      padding: .25rem .65rem;
+      border-radius: 20px;
+      margin-bottom: 1rem;
+    }
+    h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: .5rem; }
+    .sub { color: #6e6e73; font-size: .95rem; line-height: 1.5; margin-bottom: 2rem; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      background: #0071e3;
+      color: #fff;
+      text-decoration: none;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: .75rem 1.5rem;
+      border-radius: 980px;
+      margin-bottom: 2rem;
+      transition: background .15s;
+    }
+    .btn:hover { background: #0077ed; }
+    .steps { border-top: 1px solid #e5e5e7; padding-top: 1.5rem; }
+    .steps h2 { font-size: .85rem; font-weight: 600; color: #6e6e73; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 1rem; }
+    .platform { margin-bottom: 1.25rem; }
+    .platform strong { display: block; font-size: .95rem; margin-bottom: .3rem; }
+    .platform ol { padding-left: 1.2rem; color: #3a3a3c; font-size: .9rem; line-height: 1.7; }
+    .footer { margin-top: 2rem; border-top: 1px solid #e5e5e7; padding-top: 1rem; font-size: .8rem; color: #6e6e73; }
+    .footer a { color: #0071e3; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="badge">macOS &amp; iOS</span>
+    <h1>Mozilla Root Certificates</h1>
+    <p class="sub">
+      Keeps your device up to date with Mozilla's trusted root CA certificates —
+      useful for systems that no longer receive Apple's own certificate updates.
+    </p>
+
+    <a class="btn"
+       href="https://github.com/jtauschl/moz-certs-mobileconfig/releases/latest/download/moz-certs.mobileconfig">
+      ↓ Download Profile
+    </a>
+
+    <div class="steps">
+      <h2>Installation</h2>
+
+      <div class="platform">
+        <strong>macOS</strong>
+        <ol>
+          <li>Open the downloaded <code>.mobileconfig</code> file</li>
+          <li>Go to System Settings → Privacy &amp; Security → Profiles</li>
+          <li>Double-click the pending profile and confirm installation</li>
+        </ol>
+      </div>
+
+      <div class="platform">
+        <strong>iOS / iPadOS</strong>
+        <ol>
+          <li>Tap the download link above in <strong>Safari</strong></li>
+          <li>Go to Settings → General → VPN &amp; Device Management</li>
+          <li>Tap the profile and confirm installation</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="footer">
+      Certificate data sourced from <a href="https://curl.se/ca/">curl.se/ca</a> (Mozilla NSS, MPL 2.0) ·
+      <a href="https://github.com/jtauschl/moz-certs-mobileconfig">GitHub</a>
+    </div>
+  </div>
+</body>
+</html>

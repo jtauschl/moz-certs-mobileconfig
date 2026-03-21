@@ -11,6 +11,9 @@ The generator downloads Mozilla's CA bundle from [curl.se/ca/](https://curl.se/c
 builds a signed or unsigned `.mobileconfig` profile, and skips regeneration if
 the bundle hasn't changed (SHA-256 check against the existing profile).
 
+A pre-built unsigned profile is published automatically every week via GitHub Actions
+and can be installed directly from [jtauschl.github.io/moz-certs-mobileconfig](https://jtauschl.github.io/moz-certs-mobileconfig/).
+
 ## Usage
 
 ```bash
@@ -30,7 +33,7 @@ profiles install with a "Not Verified" warning but are otherwise functional.
 ## Installation on macOS
 
 Open `dist/moz-certs.mobileconfig`. macOS will prompt to install the profile
-under System Preferences / System Settings → Profiles.
+under System Settings → Privacy & Security → Profiles.
 
 ## Installation on iOS
 

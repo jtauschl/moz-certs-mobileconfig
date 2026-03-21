@@ -1,0 +1,75 @@
+name: Update Mozilla Root Certificates
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # Every Monday at 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force regeneration even if SHA unchanged'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch remote SHA-256
+        id: remote
+        run: |
+          SHA=$(curl -fsSL --max-time 10 https://curl.se/ca/cacert.pem.sha256 | awk '{print $1}')
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Remote SHA-256: ${SHA:0:16}..."
+
+      - name: Check latest release SHA
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BODY=$(gh release view --latest --json body -q '.body' 2>/dev/null || echo "")
+          PREV=$(echo "$BODY" | grep -o 'sha256:[a-f0-9]\{64\}' | head -1 | sed 's/sha256://' || echo "")
+          echo "prev_sha=${PREV}" >> "$GITHUB_OUTPUT"
+          if [[ "${{ steps.remote.outputs.sha }}" == "$PREV" && "${{ inputs.force }}" != "true" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already up to date - skipping."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "New CA bundle detected - generating profile."
+          fi
+
+      - name: Generate mobileconfig
+        if: steps.check.outputs.changed == 'true'
+        run: bash generate.sh
+
+      - name: Create release
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA="${{ steps.remote.outputs.sha }}"
+          DATE=$(date -u +%Y-%m-%d)
+          TAG="certs-${DATE}"
+
+          printf '%s\n' \
+            "Automated update of Mozilla Root Certificates from [curl.se/ca](https://curl.se/ca/)." \
+            "" \
+            "**SHA-256:** sha256:${SHA}" \
+            "" \
+            "---" \
+            "" \
+            "**Install on macOS:** Open the file, then System Settings > Privacy & Security > Profiles" \
+            "" \
+            "**Install on iOS:** Open in Safari, then Settings > General > VPN & Device Management" \
+            > release-notes.md
+
+          gh release create "$TAG" \
+            dist/moz-certs.mobileconfig \
+            --title "Mozilla Root Certificates - ${DATE}" \
+            --notes-file release-notes.md \
+            --latest

@@ -2,3 +2,5 @@
 dist/
 *.psd
 img/moz-certs-mobileconfig
+CLAUDE.md
+.mcp.json
