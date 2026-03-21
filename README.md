@@ -43,10 +43,11 @@ Management.
 
 ## Requirements
 
-- macOS
-- `curl`, `openssl`, `python3`, `security`, `shasum`
-- Internet access to curl.se
+- `curl`, `openssl`, `python3`, `perl` (`shasum`), Internet access to curl.se
+- macOS — required for `--signed` (`security` and Keychain access are Apple-only)
 - Apple signing certificate in Keychain — only required for `--signed`
+
+Unsigned profile generation works on Linux as well.
 
 ## Configuration
 
