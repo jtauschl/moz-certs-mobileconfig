@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Lint shell scripts
+        run: shellcheck generate.sh test/smoke.sh
+
+      - name: Syntax check
+        run: |
+          bash -n generate.sh
+          bash -n test/smoke.sh
+
+      - name: Smoke test
+        run: bash test/smoke.sh

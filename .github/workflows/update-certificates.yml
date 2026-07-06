@@ -24,6 +24,10 @@ jobs:
         id: remote
         run: |
           SHA=$(curl -fsSL --max-time 10 https://curl.se/ca/cacert.pem.sha256 | awk '{print $1}')
+          if [[ ! "$SHA" =~ ^[a-f0-9]{64}$ ]]; then
+            echo "::error::Invalid remote SHA-256: '$SHA'"
+            exit 1
+          fi
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
           echo "Remote SHA-256: ${SHA:0:16}..."
 
@@ -32,7 +36,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          BODY=$(gh release view --latest --json body -q '.body' 2>/dev/null || echo "")
+          BODY=$(gh release view --json body -q '.body' 2>/dev/null || echo "")
           PREV=$(echo "$BODY" | grep -o 'sha256:[a-f0-9]\{64\}' | head -1 | sed 's/sha256://' || echo "")
           echo "prev_sha=${PREV}" >> "$GITHUB_OUTPUT"
           if [[ "${{ steps.remote.outputs.sha }}" == "$PREV" && "${{ inputs.force }}" != "true" ]]; then
@@ -55,6 +59,12 @@ jobs:
           SHA="${{ steps.remote.outputs.sha }}"
           DATE=$(date -u +%Y-%m-%d)
           TAG="certs-${DATE}"
+
+          # On a manual force run on the same day, avoid colliding with an
+          # existing tag/release by using a unique, race-free suffix.
+          if [[ "${{ inputs.force }}" == "true" ]] && gh release view "$TAG" >/dev/null 2>&1; then
+            TAG="certs-${DATE}-r${GITHUB_RUN_NUMBER}"
+          fi
 
           printf '%s\n' \
             "Automated update of Mozilla Root Certificates from [curl.se/ca](https://curl.se/ca/)." \

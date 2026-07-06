@@ -22,8 +22,13 @@ SIGNING_IDENTITY=""
 PROFILE_IDENTIFIER="de.tauschl.moz-certs"
 PROFILE_NAME="Mozilla Root Certificates"
 
-CACERT_URL="https://curl.se/ca/cacert.pem"
-SHA_URL="https://curl.se/ca/cacert.pem.sha256"
+# URLs are overridable via environment (e.g. file:// fixtures for tests);
+# defaults point at curl.se.
+CACERT_URL="${CACERT_URL:-https://curl.se/ca/cacert.pem}"
+SHA_URL="${SHA_URL:-https://curl.se/ca/cacert.pem.sha256}"
+
+# Minimum plausible number of certificates; guards against empty/partial bundles.
+MIN_CERTS=100
 
 OUT_DIR="$(cd "$(dirname "$0")" && pwd)/dist"
 OUT_PROFILE="${OUT_DIR}/moz-certs.mobileconfig"
@@ -77,7 +82,7 @@ step "Checking curl.se for updates..."
 REMOTE_SHA="$(curl -fsSL --max-time 10 "$SHA_URL" | awk '{print $1}')" \
     || die "Could not fetch SHA-256 from curl.se"
 
-[[ "${#REMOTE_SHA}" -eq 64 ]] || die "Unexpected SHA-256 format: ${REMOTE_SHA}"
+[[ "$REMOTE_SHA" =~ ^[a-f0-9]{64}$ ]] || die "Unexpected SHA-256 format: ${REMOTE_SHA}"
 info "Remote SHA-256: ${REMOTE_SHA:0:16}…"
 
 # -- Compare with installed mobileconfig ------------------------------------
@@ -101,8 +106,11 @@ CACERT="${WORK}/cacert.pem"
 curl -fsSL --max-time 60 -o "$CACERT" "$CACERT_URL" \
     || die "Download failed"
 
-CERT_COUNT="$(grep -c 'BEGIN CERTIFICATE' "$CACERT")"
+CERT_COUNT="$(grep -c 'BEGIN CERTIFICATE' "$CACERT" || true)"
 info "Downloaded ${CERT_COUNT} certificates"
+
+[[ "$CERT_COUNT" -ge "$MIN_CERTS" ]] \
+    || die "Only ${CERT_COUNT} certificates found (< ${MIN_CERTS}) – aborting, possibly incomplete bundle"
 
 # -- Verify SHA --------------------------------------------------------------
 ACTUAL_SHA="$(shasum -a 256 "$CACERT" | awk '{print $1}')"
@@ -113,11 +121,12 @@ info "SHA-256 verified"
 step "Generating mobileconfig..."
 UNSIGNED="${WORK}/unsigned.mobileconfig"
 
-python3 - "$CACERT" "$UNSIGNED" "$PROFILE_IDENTIFIER" "$PROFILE_NAME" "$REMOTE_SHA" <<'PYEOF'
+python3 - "$CACERT" "$UNSIGNED" "$PROFILE_IDENTIFIER" "$PROFILE_NAME" "$REMOTE_SHA" "$CERT_COUNT" <<'PYEOF'
 
 import sys, base64, uuid, re, subprocess, tempfile, os
 
-pem_file, out_file, profile_id, profile_name, sha256 = sys.argv[1:]
+pem_file, out_file, profile_id, profile_name, sha256, expected_s = sys.argv[1:]
+expected = int(expected_s)
 
 def sanitize(s, maxlen=64):
     return re.sub(r'[^a-z0-9-]', '_', s.lower()).strip('_')[:maxlen]
@@ -190,6 +199,10 @@ for line in content.splitlines():
                 final_label = label or cn_from_der(der) or "Unknown"
                 certs.append((final_label, base64.b64encode(der).decode()))
             label = None
+
+# Guard against a parser break: a full download must yield a full profile.
+if len(certs) < 100 or len(certs) != expected:
+    sys.exit(f"Payload count {len(certs)} != expected {expected} (min 100) – aborting")
 
 payloads = []
 for i, (lbl, b64) in enumerate(certs):
