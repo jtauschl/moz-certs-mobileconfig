@@ -30,7 +30,9 @@ cleanup() {
     else
         rm -f "$PROFILE"
     fi
-    [[ "$DIST_EXISTED" == false ]] && rmdir "${REPO}/dist" 2>/dev/null || true
+    if [[ "$DIST_EXISTED" == false ]]; then
+        rmdir "${REPO}/dist" 2>/dev/null || true
+    fi
 }
 trap cleanup EXIT
 
