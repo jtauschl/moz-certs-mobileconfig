@@ -18,7 +18,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Full history + tags so we can resolve the latest v* release tag.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Resolve latest v* tag
+        id: basetag
+        run: |
+          # Highest semantic-version tag (v1.2.0 > v1.1.0 > ...). Releases are
+          # built from this tagged commit only, never from an untagged main HEAD.
+          TAG=$(git tag -l 'v*' --sort=-v:refname | head -1)
+          if [[ -z "$TAG" ]]; then
+            echo "::error::No v* tag found – nothing to build a release from."
+            exit 1
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Building from tag: ${TAG}"
+          git checkout --quiet "$TAG"
 
       - name: Fetch remote SHA-256
         id: remote
@@ -78,8 +96,11 @@ jobs:
             "**Install on iOS:** Open in Safari, then Settings > General > VPN & Device Management" \
             > release-notes.md
 
+          # Anchor the certs-* tag on the v* tagged commit we built from,
+          # not on the default branch HEAD.
           gh release create "$TAG" \
             dist/moz-certs.mobileconfig \
+            --target "${{ steps.basetag.outputs.tag }}" \
             --title "Mozilla Root Certificates - ${DATE}" \
             --notes-file release-notes.md \
             --latest

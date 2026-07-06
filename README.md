@@ -54,6 +54,30 @@ Unsigned profile generation works on Linux as well.
 The signing certificate is detected automatically from the Keychain.
 To pin a specific certificate, set `SIGNING_IDENTITY` at the top of `generate.sh`.
 
+## Release process
+
+Two kinds of Git references, with distinct roles:
+
+- **`vX.Y.Z` tags** mark software versions of the generator (code milestones).
+  They are plain tags, not GitHub releases.
+- **`certs-YYYY-MM-DD` releases** are the downloadable product: each carries the
+  built `.mobileconfig` as an asset. The GitHub Pages download button points at
+  the *latest* such release.
+
+The weekly workflow (`.github/workflows/update-certificates.yml`, Mondays 06:00 UTC,
+plus a manual trigger) builds **from the highest `vX.Y.Z` tag only** — never from an
+untagged `main`. It fetches the current CA bundle from curl.se and publishes a new
+`certs-*` release only when the bundle's SHA-256 has actually changed.
+
+**Consequence:** changes committed to `main` do *not* reach releases until you tag a
+new `vX.Y.Z`. To ship generator changes, create and push a new version tag:
+
+```bash
+git tag -a v1.2.0 -m "…" && git push origin v1.2.0
+```
+
+The next scheduled (or manually triggered) run then builds from that tag.
+
 ## License
 
 Scripts: [MIT](LICENSE)
