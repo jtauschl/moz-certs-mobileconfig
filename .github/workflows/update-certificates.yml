@@ -34,8 +34,12 @@ jobs:
             echo "::error::No v* tag found – nothing to build a release from."
             exit 1
           fi
+          # Resolve to a commit SHA: `gh release create --target` accepts a
+          # branch or SHA, but not a tag name.
+          SHA=$(git rev-list -n1 "$TAG")
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "Building from tag: ${TAG}"
+          echo "commit=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Building from tag: ${TAG} (${SHA})"
           git checkout --quiet "$TAG"
 
       - name: Fetch remote SHA-256
@@ -100,7 +104,7 @@ jobs:
           # not on the default branch HEAD.
           gh release create "$TAG" \
             dist/moz-certs.mobileconfig \
-            --target "${{ steps.basetag.outputs.tag }}" \
+            --target "${{ steps.basetag.outputs.commit }}" \
             --title "Mozilla Root Certificates - ${DATE}" \
             --notes-file release-notes.md \
             --latest
